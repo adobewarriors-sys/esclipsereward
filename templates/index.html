@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eclipse Mini App</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body { background: #0a0b10; color: #fff; font-family: sans-serif; text-align: center; margin: 0; padding: 15px; }
+        .card { background: #161822; border-radius: 20px; padding: 20px; max-width: 360px; margin: auto; box-shadow: 0 8px 30px rgba(0,0,0,0.7); }
+        .eclipse-container { width: 140px; height: 140px; border-radius: 50%; margin: 20px auto; display: flex; align-items: center; justify-content: center; transition: all 0.6s ease-in-out; }
+        .eclipse-black { background: #000; border: 4px solid #333; box-shadow: inset 0 0 20px #000; }
+        .eclipse-glowing { background: radial-gradient(circle, #00f0ff, #0077ff); border: 4px solid #00f0ff; box-shadow: 0 0 35px #00f0ff, inset 0 0 15px #fff; }
+        .task-item { background: #0d0e15; padding: 12px; margin: 8px 0; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; }
+        button { background: linear-gradient(45deg, #00d2ff, #0077ff); color: #fff; font-weight: bold; border: none; padding: 14px; width: 100%; border-radius: 12px; cursor: pointer; font-size: 15px; }
+        button:disabled { background: #333; color: #777; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>🌕 Eclipse Task App</h2>
+    <p style="font-size: 14px; color: #aaa;">Balance: <b id="balance" style="color: #00d2ff; font-size: 26px;">0</b> Blue$</p>
+
+    <div id="eclipse" class="eclipse-container eclipse-black">
+        <span id="eclipse-text" style="font-size: 12px; color: #888;">OFFLINE</span>
+    </div>
+
+    <p style="font-size: 13px;">Progress: <b id="progress">0</b>/5 Tasks towards <b>250 Blue$ Bonus</b></p>
+
+    <div style="text-align: left; margin-top: 20px;">
+        <h4>Daily 3 Tasks</h4>
+        <div class="task-item"><span>1. Join Telegram Channel</span> <input type="checkbox" class="chk"></div>
+        <div class="task-item"><span>2. Visit Partner Site</span> <input type="checkbox" class="chk"></div>
+        <div class="task-item"><span>3. Share Bot Status</span> <input type="checkbox" class="chk"></div>
+    </div>
+
+    <button id="claim-btn" onclick="submitTasks()" style="margin-top: 15px;">Complete 3 Tasks & Light Eclipse</button>
+
+    <hr style="border-color: #222; margin: 25px 0 15px 0;">
+    <h4>3-Tier Referral Program</h4>
+    <p style="font-size: 11px; color: #888;">Tier 1: 10% | Tier 2: 5% | Tier 3: 3%</p>
+    <p style="font-size: 11px; word-break: break-all; background: #0d0e15; padding: 8px; border-radius: 6px;" id="ref-link">Loading link...</p>
+</div>
+
+<script>
+    const tg = window.Telegram.WebApp;
+    tg.expand();
+
+    let user = tg.initDataUnsafe?.user?.username || "DemoUser";
+    let urlParams = new URLSearchParams(window.location.search);
+    let refBy = urlParams.get('ref');
+
+    async function loadData() {
+        let res = await fetch('/api/user_info', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({username: user, ref_by: refBy})
+        });
+        let data = await res.json();
+
+        document.getElementById('balance').innerText = data.balance;
+        document.getElementById('progress').innerText = data.completed_tasks;
+        document.getElementById('ref-link').innerText = window.location.origin + "?ref=" + data.id;
+
+        let eclipse = document.getElementById('eclipse');
+        let eclipseText = document.getElementById('eclipse-text');
+        let btn = document.getElementById('claim-btn');
+
+        if (data.eclipse_active) {
+            eclipse.className = "eclipse-container eclipse-glowing";
+            eclipseText.innerText = "LIGHT ON 🌟";
+            btn.disabled = true;
+            btn.innerText = "Eclipse Active (24H Timer Running)";
+        } else {
+            eclipse.className = "eclipse-container eclipse-black";
+            eclipseText.innerText = "OFF (24H)";
+            btn.disabled = false;
+        }
+    }
+
+    async function submitTasks() {
+        let checks = document.querySelectorAll('.chk');
+        let valid = Array.from(checks).every(c => c.checked);
+
+        if (!valid) {
+            alert("Pehle teeno tasks checkboxes tick karein!");
+            return;
+        }
+
+        let res = await fetch('/api/complete_tasks', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({username: user})
+        });
+        let data = await res.json();
+
+        if (data.status === 'success') {
+            alert("Tasks complete! Round Eclipse Light ON ho gayi.");
+            if (data.earned > 0) alert("🎉 Mubarak ho! 5 tasks complete hone par 250 Blue$ Bonus mil gaya!");
+            loadData();
+        } else {
+            alert(data.message);
+        }
+    }
+
+    loadData();
+</script>
+</body>
+</html>
